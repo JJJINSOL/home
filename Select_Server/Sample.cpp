@@ -1,25 +1,5 @@
-#define _WINSOCK_DEPRECATED_NO_WARNINGS
-#include <iostream>
-#include <string>
-#include <list>
-#include <WinSock2.h>
-#include "Packet.h"
-#pragma comment (lib, "ws2_32.lib")
-using namespace std;
-struct User
-{
-	SOCKET m_sock;
-	SOCKADDR_IN m_addr;
-	string m_name;
-	short m_port;
-	void set(SOCKET sock, SOCKADDR_IN addr)
-	{
-		m_sock = sock;
-		m_addr = addr;
-		m_name = inet_ntoa(addr.sin_addr);
-		m_port = ntohs(addr.sin_port);
-	}
-};
+#include "NetWork.h"
+list<NetUser> userlist;
 int SendMsg(SOCKET sock, char* msg, WORD type)
 {
 	//1. 패킷 생성
@@ -68,59 +48,60 @@ int SendMsg(SOCKET sock, UPACKET& packet)
 	} while (sendsize < packet.ph.len);
 	return sendsize;
 }
-void main()
+int AddUser(SOCKET sock)
 {
-	WSADATA wsa;
-	if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0)
-	{
-		return;
-	}
-	SOCKET listensock = socket(AF_INET, SOCK_STREAM, 0);
-	SOCKADDR_IN sa;
-	ZeroMemory(&sa, sizeof(sa));
-	sa.sin_family = AF_INET;
-	sa.sin_port = htons(10000);
-	sa.sin_addr.s_addr = htonl(INADDR_ANY);
-	int a = bind(listensock, (sockaddr*)&sa, sizeof(sa));
-	if (a == SOCKET_ERROR) return;
-	a = listen(listensock, SOMAXCONN);
-	if (a == SOCKET_ERROR) return;
-
 	SOCKADDR_IN clientaddr;
 	int len = sizeof(clientaddr);
+	SOCKET clientsock = accept(sock, (sockaddr*)&clientaddr, &len);
+	if (clientsock == SOCKET_ERROR)
+	{
+		return -1;
+	}
+	else
+	{
+		NetUser user;
+		user.set(clientsock, clientaddr);
+		userlist.push_back(user);
 
+		cout << "ip = " << inet_ntoa(clientaddr.sin_addr)
+			<< " port = " << ntohs(clientaddr.sin_port)
+			<< "  " << endl;
+
+		cout << userlist.size() << "명 접속중!" << endl;
+	}
+	return 1;
+}
+int RecvUser(NetUser& user)
+{
+	char recvbuffer[1024] = { 0, };
+	int recvbyte = recv(user.m_sock, recvbuffer, 1024, 0);
+	if (recvbyte == 0)
+	{
+		return 0;
+	}
+	if (recvbyte == SOCKET_ERROR)
+	{
+		return -1;
+	}
+	user.DispatchRead(recvbuffer, recvbyte);
+	return 1
+}
+void main()
+{
+	NetWork nw;
+	nw.Initnetwork();
+	nw.Initserver(SOCK_STREAM, 10000,nullptr);
 	cout << "서버 가동중~" << endl;
+	//select를 사용하면 넌블록킹이 아니어도 됨
 
-	u_long on = 1;
-	ioctlsocket(listensock, FIONBIO, &on);
 
-	list<User> userlist;
+
+
+	
 
 	while (1)
 	{
-		SOCKET clientsock = accept(listensock, (sockaddr*)&clientaddr, &len);
-		if (clientsock == SOCKET_ERROR)
-		{
-			int error = WSAGetLastError();
-			if (error != WSAEWOULDBLOCK)
-			{
-				cout << "ERRORCODE = " << error << endl;
-				break;
-			}
-		}
-		else
-		{
-			User user;
-			user.set(clientsock, clientaddr);
-			userlist.push_back(user);
-
-			cout << "ip = " << inet_ntoa(clientaddr.sin_addr)
-				<< " port = " << ntohs(clientaddr.sin_port)
-				<< "  " << endl;
-			u_long on = 1;
-			ioctlsocket(clientsock, FIONBIO, &on);
-			cout << userlist.size() << "명 접속중!" << endl;
-		}
+		
 		if (userlist.size() > 0)
 		{
 			list<User>::iterator i;

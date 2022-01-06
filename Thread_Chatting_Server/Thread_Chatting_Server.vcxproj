@@ -21,8 +21,8 @@
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
-    <ProjectGuid>{da39cd59-4954-4050-93db-48e5619bbb2c}</ProjectGuid>
-    <RootNamespace>PacketServer</RootNamespace>
+    <ProjectGuid>{be76959f-8325-49fe-8e2a-f597f7a16506}</ProjectGuid>
+    <RootNamespace>ThreadChattingServer</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -79,7 +79,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
     <OutDir>../../output/debug</OutDir>
-    <IntDir>../../output/debug/Packet_Server</IntDir>
+    <IntDir>../../output/debug/Thread_C_S</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
