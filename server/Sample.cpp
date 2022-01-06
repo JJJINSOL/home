@@ -32,7 +32,7 @@ void main()
 	cout << "서버 가동중....." << endl;
 	while (1)
 	{
-		//accept = 연결 요청을 수학하는 함수
+		//accept = 연결 요청을 수락하는 함수
 		SOCKET clientsock = accept(listensock, (sockaddr*)&clientaddr, &len);
 		if (clientsock == SOCKET_ERROR)
 		{
