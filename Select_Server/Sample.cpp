@@ -84,7 +84,7 @@ int RecvUser(NetUser& user)
 		return -1;
 	}
 	user.DispatchRead(recvbuffer, recvbyte);
-	return 1
+	return 1;
 }
 void main()
 {
@@ -94,124 +94,90 @@ void main()
 	cout << "서버 가동중~" << endl;
 	//select를 사용하면 넌블록킹이 아니어도 됨
 
+	FD_SET rSet; // 읽기 셋
+	FD_SET wSet; // 쓰기 셋
 
-
-
-	
+	timeval timeout; // 타임아웃 값
+	timeout.tv_sec = 0; // 초
+	timeout.tv_usec = 1; // 마이크로 초
 
 	while (1)
 	{
-		
-		if (userlist.size() > 0)
+		//1.소켓 셋 비운다(초기화)
+		//2.소켓 셋에 소켓을 넣음. 셋에 넣을 수 있는 최대 개수 = 64
+		//3.select() 함수 호출
+		//4.select() 함수 리턴 후, 소켓 셋에 남아 있는 모든 소켓에 대해 적절한 소켓 함수를 호출 처리
+		//1-4 반복 
+
+		//FD_ZERO =  초기화
+		FD_ZERO(&rSet);
+		FD_ZERO(&wSet);
+
+		FD_SET(nw.m_listensock, &rSet);
+
+		list<NetUser>::iterator userIter;
+
+		for (userIter = userlist.begin(); userIter != userlist.end();)
 		{
-			list<User>::iterator i;
-			for (i = userlist.begin(); i != userlist.end();)
+			if ((*userIter).m_connect == false)
 			{
-				User user = *i;
-				char recvbuffer[256] = { 0, };
-				UPACKET recvpacket;
-				ZeroMemory(&recvpacket, sizeof(recvpacket));
-				int recvsize = 0;
-				do 
-				{
-					int recvbyte = recv(user.m_sock, recvbuffer, PACKET_HEADER_SIZE, 0);
-					recvsize += recvbyte;
-					if (recvbyte == 0)
-					{
-						closesocket(user.m_sock);
-						i = userlist.erase(i);
-						cout << user.m_name << " 접속 종료되었음" << endl;
-						continue;
-					}
-					if (recvbyte == SOCKET_ERROR)
-					{
-						int error = WSAGetLastError();
-						if (error != WSAEWOULDBLOCK)
-						{
-							i = userlist.erase(i);
-							std::cout << user.m_name << " 비정상적인 접속종료" << std::endl;
-							break;
-						}
-						else
-						{
-							break;
-						}
-					}
-				} while (recvsize< PACKET_HEADER_SIZE);
-				if (recvsize == SOCKET_ERROR)
-				{
-					if (i != userlist.end())
-					{
-						i++;
-					}
-					continue;
-				}
-				memcpy(&recvpacket.ph, recvbuffer, PACKET_HEADER_SIZE);
-				recvsize = 0;
+				cout << (*userIter).m_name << " 접속 종료되었음" << endl;
+				userIter = userlist.erase(userIter);
+				continue;
+			}
+			FD_SET((*userIter).m_sock, &rSet);
+			if ((*userIter).m_packetpool.size() > 0)
+			{
+				FD_SET((*userIter).m_sock, &wSet);
+			}
+			userIter++;
+		}
 
-				do
-				{
-					int recvbyte = recv(user.m_sock, recvpacket.msg, recvpacket.ph.len-PACKET_HEADER_SIZE- recvsize, 0);
-					recvsize += recvbyte;
-					if (recvbyte == 0)
-					{
-						closesocket(user.m_sock);
-						i = userlist.erase(i);
-						cout << user.m_name << " 접속 종료되었음" << endl;
-						continue;
-					}
-					if (recvbyte == SOCKET_ERROR)
-					{
-						int error = WSAGetLastError();
-						if (error != WSAEWOULDBLOCK)
-						{
-							i = userlist.erase(i);
-							std::cout << user.m_name << " 비정상적인 접속종료" << std::endl;
-						}
-						else
-						{
-							i++;
-						}
-					}
-				} while (recvsize < recvpacket.ph.len - PACKET_HEADER_SIZE);
-
-				Packet data;
-				data.m_upacket = recvpacket;
-				ChatMsg recvmsg;
-				ZeroMemory(&recvmsg, sizeof(recvmsg));
-				data >> recvmsg.index >> recvmsg.name >> recvmsg.damage >> recvmsg.message;
-
-				cout << "\n" << "[" << recvmsg.name << "]" << recvmsg.message;
-
-				//---------------------------여기까지 패킷 완성
-
-
-				list<User>::iterator isend;
-				for (isend = userlist.begin(); isend != userlist.end();)
-				{
-					User user = *isend;
-					
-					int sendsize = SendMsg(user.m_sock,recvpacket);
-					
-					if (sendsize < 0)
-					{
-						closesocket(user.m_sock);
-						isend = userlist.erase(i);
-						cout << user.m_name << " 비정상 접속 종료되었음" << endl;
-					}
-					else
-					{
-						isend++;
-					}
-				}
-				if (i != userlist.end())
-				{
-					i++;
-				}
-
+		int ret = select(0, &rSet, &wSet, NULL, &timeout);
+		if (ret == 0)
+		{
+			continue;
+		}
+		if (FD_ISSET(nw.m_listensock, &rSet))
+		{
+			if (AddUser(nw.m_listensock) <= 0)
+			{
+				break;
 			}
 		}
+		for (NetUser& user : userlist)
+		{
+			if (FD_ISSET(user.m_sock, &rSet))
+			{
+				if (RecvUser(user) <= 0)
+				{
+					user.m_connect = false;
+				}
+			}
+		}
+		for (NetUser& user : userlist)
+		{
+			if (FD_ISSET(user.m_sock, &wSet))
+			{
+				if (user.m_packetpool.size() > 0)
+				{
+					list<Packet>::iterator iter;
+					for (iter = user.m_packetpool.begin(); iter != user.m_packetpool.end();)
+					{
+						for (NetUser& senduser : userlist)
+						{
+							int ret = SendMsg(senduser.m_sock, (*iter).m_upacket);
+							if (ret <= 0)
+							{
+								senduser.m_connect = false;
+							}
+						}
+						iter = user.m_packetpool.erase(iter);
+					}
+				}
+			}
+		}
+				
 	}
-	closesocket(listensock);
-	WSACleanup();
+		nw.Closenetwork();
 }

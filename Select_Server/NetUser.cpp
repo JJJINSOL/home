@@ -25,30 +25,29 @@ int NetUser:: DispatchRead(char* recvbuffer, int recvbyte)
 		m_writepos = m_readpos;
 	}
 	memcpy(&m_recvbuffer[m_writepos], recvbuffer, recvbyte);
-	m_writepos += recvbyte;// 버퍼에 이전에 저장된 위치
-	m_readpos += recvbyte; // 패킷시작 위치로부터 받은 바이트
+	m_writepos += recvbyte;
+	m_readpos += recvbyte;
 
 	if (m_readpos >= PACKET_HEADER_SIZE)
 	{
-		// 패킷 해석 가능
-		UPACKET* pPacket = (UPACKET*)&m_recvbuffer[m_packetpos];
-		// 적어도 1개의 패킷은 도착했다.
-		if (pPacket->ph.len <= m_readpos)
+		UPACKET* upacket = (UPACKET*)&m_recvbuffer[m_packetpos];
+		if (upacket->ph.len <= m_readpos)
 		{
-			do {
-				Packet packet (pPacket->ph.type);
-				memcpy(&packet.m_upacket, &m_recvbuffer[m_packetpos], pPacket->ph.len);
+			do
+			{
+				Packet packet(upacket->ph.type);
+				memcpy(&packet.m_upacket, &m_recvbuffer[m_packetpos], upacket->ph.len);
 				m_packetpool.push_back(packet);
 
-				// 다음패킷 처리
-				m_packetpos += pPacket->ph.len;
-				m_readpos -= pPacket->ph.len;
+				//다음패킷 처리
+				m_packetpos += upacket->ph.len;
+				m_readpos -= upacket->ph.len;
 				if (m_readpos < PACKET_HEADER_SIZE)
 				{
 					break;
 				}
-				pPacket = (UPACKET*)&m_recvbuffer[m_packetpos];
-			} while (pPacket->ph.len <= m_readpos);
+				upacket = (UPACKET*)&m_recvbuffer[m_packetpos];
+			} while (upacket->ph.len<=m_readpos);
 		}
 	}
 	return 1;

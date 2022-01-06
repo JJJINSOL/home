@@ -200,8 +200,8 @@ void main()
 	ZeroMemory(&sa, sizeof(sa));
 	sa.sin_family = AF_INET;
 	sa.sin_port = htons(10000);
-	sa.sin_addr.s_addr = inet_addr("192.168.0.28");
-	//sa.sin_addr.s_addr = inet_addr("49.142.62.169");
+	//sa.sin_addr.s_addr = inet_addr("192.168.0.28");
+	sa.sin_addr.s_addr = inet_addr("49.142.62.169");
 	int con = connect(sock, (sockaddr*)&sa, sizeof(sa));
 	if (con == SOCKET_ERROR)
 	{
